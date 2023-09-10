@@ -138,8 +138,6 @@ public class Keybinds implements ClientModInitializer {
         KeyMapping dev3 = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.recode.dev3", InputConstants.Type.KEYSYM, -1, "key.category.nodesel"));
 
-        // Useless comment
-
         // register all the KeyMappings for the chat rooms
         for (ChatShortcut chatShortcut: ChatShortcut.values()) {
             ChatShortcut.addKeyMapping(KeyBindingHelper.registerKeyBinding(new KeyMapping(
