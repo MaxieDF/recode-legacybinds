@@ -4,66 +4,110 @@
 package io.github.homchom.recode.multiplayer.state
 
 import io.github.homchom.recode.mc
-import io.github.homchom.recode.multiplayer.*
+import io.github.homchom.recode.multiplayer.MAIN_ARROW
+import io.github.homchom.recode.multiplayer.SUPPORT_ARROW
+import io.github.homchom.recode.multiplayer.username
 import io.github.homchom.recode.ui.equalsUnstyled
 import io.github.homchom.recode.ui.matchesUnstyled
-import io.github.homchom.recode.util.GroupMatcher
 import io.github.homchom.recode.util.Matcher
-import io.github.homchom.recode.util.enumMatcher
-import io.github.homchom.recode.util.unitOrNull
+import io.github.homchom.recode.util.matcherOf
+import io.github.homchom.recode.util.regex.RegexModifier
+import io.github.homchom.recode.util.regex.regex
 import kotlinx.coroutines.Deferred
 import net.minecraft.client.multiplayer.ServerData
+import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
+import net.minecraft.world.item.ItemStack
 
 val ServerData?.ipMatchesDF get(): Boolean {
-    val regex = Regex("""(?:\w+\.)?mcdiamondfire\.com(?::\d+)?""")
+    val regex = regex {
+        modify(RegexModifier.IgnoreCase)
+        all {
+            wordChar.oneOrMore()
+            period
+        }.optional()
+
+        str("mcdiamondfire.com")
+
+        all {
+            str(":")
+            digit.oneOrMore()
+        }.optional()
+    }
+
     return this?.ip?.matches(regex) ?: false
 }
 
-sealed class DFState : LocateState {
-    abstract val permissions: Deferred<PermissionGroup>
+sealed interface DFState {
+    val permissions: Deferred<PermissionGroup>
 
-    abstract val session: SupportSession?
+    val node: Node
+    val session: SupportSession?
 
     /**
      * The player's current permissions, suspending if permissions have not yet been initially detected.
      */
     suspend fun permissions() = permissions.await()
 
+    /**
+     * Returns a new [DFState] derived from this one and [state], including calculated [PlotMode] state.
+     */
     fun withState(state: LocateState) = when (state) {
-        is SpawnState -> AtSpawn(state.node, permissions, session)
-        is PlayState -> OnPlot(state, permissions, session)
+        is LocateState.AtSpawn -> AtSpawn(state.node, permissions, session)
+        is LocateState.OnPlot -> {
+            val mode = when (state.mode) {
+                PlotMode.Play -> PlotMode.Play
+
+                PlotMode.Build -> PlotMode.Build
+
+                PlotMode.Dev.ID -> mc.player!!.let { player ->
+                    val buildCorner = player.blockPosition()
+                        .mutable()
+                        .setY(49)
+                        .move(10, 0, -10)
+                        .immutable()
+
+                    val referenceBookCopy = player.inventory.getItem(17).copy()
+
+                    PlotMode.Dev(buildCorner, referenceBookCopy)
+                }
+            }
+
+            OnPlot(state.node, mode, state.plot, state.status, permissions, session)
+        }
     }
 
-    abstract fun withSession(session: SupportSession?): DFState
+    fun withSession(session: SupportSession?): DFState
 
     data class AtSpawn(
         override val node: Node,
         override val permissions: Deferred<PermissionGroup>,
         override val session: SupportSession?
-    ) : DFState(), SpawnState {
+    ) : DFState {
         override fun withSession(session: SupportSession?) = copy(session = session)
+
+        override fun equals(other: Any?) = super.equals(other)
+        override fun hashCode() = super.hashCode()
     }
 
     data class OnPlot(
         override val node: Node,
-        override val mode: PlotMode,
-        override val plot: Plot,
-        override val status: String?,
+        val mode: PlotMode,
+        val plot: Plot,
+        val status: String?,
         override val permissions: Deferred<PermissionGroup>,
         override val session: SupportSession?
-    ) : DFState(), PlayState {
-        constructor(
-            state: PlayState,
-            permissions: Deferred<PermissionGroup>,
-            session: SupportSession?
-        ) : this(state.node, state.mode, state.plot, state.status, permissions, session)
-
+    ) : DFState {
         override fun withSession(session: SupportSession?) = copy(session = session)
+
+        override fun equals(other: Any?) = super.equals(other)
+        override fun hashCode() = super.hashCode()
     }
 }
 
-fun DFState?.isInMode(mode: PlotMode) = this is DFState.OnPlot && this.mode == mode
+fun DFState?.isOnPlot(plot: Plot) = this is DFState.OnPlot && this.plot == plot
+
+fun DFState?.isInMode(mode: PlotMode.ID) = this is DFState.OnPlot && this.mode.id == mode
 
 @JvmInline
 value class Node(private val id: String) {
@@ -88,72 +132,90 @@ data class Plot(
     @get:JvmName("getId") val id: UInt
 )
 
-private val playModeRegex =
-    Regex("""$MAIN_ARROW_CHAR Joined game: $PLOT_NAME_PATTERN by $USERNAME_PATTERN\.""")
-
-enum class PlotMode(val descriptor: String) : Matcher<Component, Unit> {
-    Play("playing") {
-        override fun match(input: Component) =
-            playModeRegex.matchesUnstyled(input).unitOrNull()
-    },
-    Build("building") {
-        override fun match(input: Component) =
-            input.equalsUnstyled("$MAIN_ARROW_CHAR You are now in build mode.").unitOrNull()
-    },
-    Dev("coding") {
-        override fun match(input: Component) =
-            input.equalsUnstyled("$MAIN_ARROW_CHAR You are now in dev mode.").unitOrNull()
-    };
-
-    val id get() = name.lowercase()
-
-    val capitalizedDescriptor get() = descriptor.replaceFirstChar(Char::titlecase)
-
-    companion object : GroupMatcher<Component, Unit, PlotMode> by enumMatcher()
+private val playModeRegex = regex {
+    str("$MAIN_ARROW Joined game: ")
+    any.oneOrMore() // plot name
+    str(" by ")
+    username()
+    period
 }
 
-fun plotModeByDescriptor(descriptor: String) =
-    PlotMode.values().single { it.descriptor == descriptor }
-fun plotModeByDescriptorOrNull(descriptor: String) =
-    PlotMode.values().singleOrNull { it.descriptor == descriptor }
+sealed interface PlotMode {
+    val id: ID
 
-enum class SupportSession : Matcher<Component, Unit> {
+    sealed interface ID : Matcher<Component, ID> {
+        val descriptor: String
+
+        val capitalizedDescriptor get() = descriptor.replaceFirstChar(Char::titlecase)
+
+        companion object : Matcher<Component, ID> {
+            val entries get() = arrayOf(Play, Build, Dev)
+
+            override fun match(input: Component) = matcherOf(*entries).match(input)
+        }
+    }
+
+    data object Play : PlotMode, ID {
+        override val id get() = this
+
+        override val descriptor = "playing"
+
+        override fun match(input: Component) = takeIf { playModeRegex.matchesUnstyled(input) }
+    }
+
+    data object Build : PlotMode, ID {
+        override val id get() = this
+
+        override val descriptor = "building"
+
+        override fun match(input: Component) =
+            takeIf { input.equalsUnstyled("$MAIN_ARROW You are now in build mode.") }
+    }
+
+    data class Dev(val buildCorner: BlockPos, val referenceBookCopy: ItemStack) : PlotMode {
+        override val id get() = ID
+
+        companion object ID : PlotMode.ID {
+            override val descriptor = "coding"
+
+            override fun match(input: Component) =
+                takeIf { input.equalsUnstyled("$MAIN_ARROW You are now in dev mode.") }
+        }
+    }
+}
+
+enum class SupportSession : Matcher<Component, SupportSession> {
     Requested {
-        override fun match(input: Component) = input.equalsUnstyled(
+        override fun match(input: Component) = takeIf { input.equalsUnstyled(
             "You have requested code support.\nIf you wish to leave the queue, use /support cancel."
-        ).unitOrNull()
+        ) }
     },
     Helping {
-        override fun match(input: Component): Unit? {
-            val regex = Regex("\\[SUPPORT] ${mc.player!!.username} entered a session with " +
-                    "$USERNAME_PATTERN\\. $SUPPORT_ARROW_CHAR Queue cleared!")
-            return regex.matchesUnstyled(input).unitOrNull()
+        override fun match(input: Component): SupportSession? {
+            val regex = regex {
+                str("[SUPPORT] ${mc.player!!.username} entered a session with ")
+                username()
+                str(". $SUPPORT_ARROW Queue cleared!")
+            }
+            return takeIf { regex.matchesUnstyled(input) }
         }
     };
 
-    companion object : GroupMatcher<Component, Unit, SupportSession> by enumMatcher()
+    companion object : Matcher<Component, SupportSession> by matcherOf(entries)
 }
 
 sealed interface LocateState {
     val node: Node
 
-    data class AtSpawn(override val node: Node) : SpawnState
+    data class AtSpawn(override val node: Node) : LocateState
 
     data class OnPlot(
         override val node: Node,
-        override val plot: Plot,
-        override val mode: PlotMode,
-        override val status: String?
-    ) : PlayState
+        val plot: Plot,
+        val mode: PlotMode.ID,
+        val status: String?
+    ) : LocateState
 }
 
 @Deprecated("Only used for legacy state", ReplaceWith("node.displayName"))
-val LocateState.nodeDisplayName @JvmName("getNodeDisplayName") get() = node.displayName
-
-sealed interface SpawnState : LocateState
-
-sealed interface PlayState : LocateState {
-    val plot: Plot
-    val mode: PlotMode
-    val status: String?
-}
+val DFState.nodeDisplayName @JvmName("getNodeDisplayName") get() = node.displayName

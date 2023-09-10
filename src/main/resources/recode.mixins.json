@@ -5,14 +5,21 @@
   "mixins": [],
   "client": [
     "MMinecraft",
+    "multiplayer.MChatListener",
     "multiplayer.MClientPacketListener",
+    "multiplayer.MConnection",
     "multiplayer.MJoinMultiplayerScreen",
+    "optional.sodium.MSodiumWorldRenderer",
+    "render.MAbstractContainerScreen",
     "render.MBlockEntityRenderDispatcher",
+    "render.MChatComponent",
+    "render.MChatScreen",
     "render.MGui",
     "render.MLevelRenderer",
-    "render.MSodiumWorldRenderer"
+    "render.MWindow"
   ],
   "server": [],
+  "plugin": "io.github.homchom.recode.mixin.MixinPluginRecode",
   "injectors": {
     "defaultRequire": 1
   }

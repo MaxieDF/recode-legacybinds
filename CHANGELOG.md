@@ -1,27 +1,24 @@
-For Minecraft 1.19.4, Fabric API 0.78.0 or newer
+For Minecraft 1.20.1 with Fabric API
 
 ### Changes
-- Updated to Minecraft 1.19.4
-- Automation commands no longer take multiple seconds to take effect
-- Improved block entity performance (including in codespaces)
-- The LagSlayer overlay now has a shadow (#33)
-- Improvements to Side Chat
-- The mod is now more lenient with Cloth Config compatibility
-- Removed Partner Bracket and Quick Var Scope (as they were added to DF in Patch 5.7)
-- The mod now raises a warning when used with Optifabric (Optifine is not supported)
+
+- Significantly improved performance
+- Improved mod compatibility (notably with Noxesium)
+- Side chat is now symmetric with main chat
+- Message stacking now uses Minecraft's chat status system
+(indicated by a hoverable aqua line to the left of the message)
+- The DiamondFire button of the title screen now supports the High Contrast resource pack
 
 ### Fixes
-- The copy button in /colors no longer freezes the screen
-- `/locate` messages should no longer appear in chat unexpectedly on occasion
-- Messages (including chat messages and especially `/locate`-ing oneself) can no longer be hidden when they shouldn't be
-- The "Recode" button in the Options menu is now compatible with most mods
 
-### Known issues
-- Auto `/chat local` and similar automation commands run in support sessions (this will be fixed very soon! but for now you can disable the setting or just live with the bug)
-- Newer code actions still don't have lore overlays (the action dump is outdated)
-- The current Options menu can clip the edge of the screen on large GUI scales
+- Fixed many features not working for non-ranked players
+- Viewing the profile of a non-ranked player no longer errors
+- General performance no longer slows over time (thanks Wyzzard225)
+- The mod is now compatible with Sodium 0.5 (but is __no longer compatible__ with 0.4, so players must update)
+- Fixed the 'Pick Block' vanilla key bind not working with the mod
+- Auto /chat local now works when joining a plot from another plot
+- Side chat now rescales with the game window
+- Chat status descriptions can now be viewed for messages in side chat
 
-### Technical
-- Updated to Kotlin 1.8.20
-- `/locate` is no longer sent by the client every 5 seconds
-- A million other internal changes/improvements (unsure about something you see? ask!)
+### Removals
+- Temporarily disabled `/nbssearch`, mainly for security reasons (re-adding this is a high priority!)

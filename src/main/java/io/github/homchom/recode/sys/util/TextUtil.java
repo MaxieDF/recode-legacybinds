@@ -9,67 +9,49 @@ import net.minecraft.network.chat.TextColor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TextUtil {
-
-    public static String textComponentToColorCodes(Component message) {
-        List<Component> siblings = message.getSiblings();
-
+    @Deprecated
+    public static String toLegacyCodes(Component message) {
         StringBuilder newMsg = new StringBuilder();
-        String currentText = "";
 
-        translateSibling(message, newMsg, currentText);
-        for (Component sibling : siblings) {
-            translateSibling(sibling, newMsg, currentText);
-            for (Component sibling2 : sibling.getSiblings()) {
-                translateSibling(sibling2, newMsg, currentText);
-                for (Component sibling3 : sibling2.getSiblings()) {
-                    translateSibling(sibling3, newMsg, currentText);
-                }
+        message.visit((style, string) -> {
+            // color
+            TextColor color = style.getColor();
+            if (color == null) return Optional.empty();
+
+            String code = MinecraftColors.getMcFromFormatting(color);
+            var currentText = Objects.requireNonNullElseGet(code, () -> MinecraftColors.hexToMc(String.valueOf(color)));
+
+            if (style.isBold()) {
+                currentText += "§l";
             }
-        }
+            if (style.isItalic()) {
+                currentText += "§o";
+            }
+            if (style.isStrikethrough()) {
+                currentText += "§m";
+            }
+            if (style.isUnderlined()) {
+                currentText += "§n";
+            }
+            if (style.isObfuscated()) {
+                currentText += "§k";
+            }
+
+            currentText += string;
+            newMsg.append(currentText);
+            return Optional.empty();
+        }, Style.EMPTY);
 
         return newMsg.toString();
     }
 
-    private static void translateSibling(Component sibling, StringBuilder newMsg, String currentText) {
-        Style style = sibling.getStyle();
-
-        // color
-        TextColor color = style.getColor();
-        if (color == null && sibling.getSiblings().size() > 0) {
-            return;
-        }
-
-        String code = MinecraftColors.getMcFromFormatting(color);
-        if (code == null) {
-            currentText = MinecraftColors.hexToMc(String.valueOf(color));
-        } else {
-            currentText = code;
-        }
-
-        if (style.isBold()) {
-            currentText += "§l";
-        }
-        if (style.isItalic()) {
-            currentText += "§o";
-        }
-        if (style.isStrikethrough()) {
-            currentText += "§m";
-        }
-        if (style.isUnderlined()) {
-            currentText += "§n";
-        }
-        if (style.isObfuscated()) {
-            currentText += "§k";
-        }
-
-        currentText += sibling.getString();
-        newMsg.append(currentText);
-    }
-
+    @Deprecated
     public static Component colorCodesToTextComponent(String message) {
         MutableComponent result = Component.literal("");
 
@@ -83,7 +65,7 @@ public class TextUtil {
             while (matcher.find()) {
                 int start = matcher.start();
                 String text = message.substring(lastIndex, start);
-                if (text.length() != 0) {
+                if (!text.isEmpty()) {
                     MutableComponent t = Component.literal(text);
                     t.setStyle(s);
                     result.append(t);
@@ -99,21 +81,21 @@ public class TextUtil {
                 lastIndex = matcher.end();
             }
             String text = message.substring(lastIndex);
-            if (text.length() != 0) {
+            if (!text.isEmpty()) {
                 MutableComponent t = Component.literal(text);
                 t.setStyle(s);
                 result.append(t);
             }
         } catch (Exception err) {
             err.printStackTrace();
-            return Component.literal("Recode Text Error");
+            return Component.literal("Text Error");
         }
 
         return result;
     }
 
     public static String toString(Component text) {
-        if (text.getString().equals("")) {
+        if (text.getString().isEmpty()) {
             return "{\"text\": \"\"}";
         }
         return "{\"extra\":[" + String.join(",", toExtraString(text.getSiblings()))
@@ -142,39 +124,47 @@ public class TextUtil {
         return TextUtil.toString(TextUtil.colorCodesToTextComponent(text.replaceAll("\"", "''").replaceAll("''", "\\\\\"")));
     }
 
-    public static String formatValues(String text, String stringColor, String numberColor) {
-        String output = "";
-        String lastColor = "§f";
-        Boolean activeQuote = false;
-        char[] chars = text.toCharArray();
-        for (char ch : chars) {
-            String character = String.valueOf(ch);
-            if (character.equals("\"")) {
+    // TODO: document every invariant of this function (because it needs to be rewritten)
+    public static String formatValues(String text, String lastColor, String stringColor, String numberColor) {
+        StringBuilder output = new StringBuilder();
+        Character lastChar = null;
+        boolean activeQuote = false;
+
+        for (char character : text.toCharArray()) {
+            if (character == '"') {
                 activeQuote = !activeQuote;
                 if (!activeQuote) {
-                    output += character;
-                    output += lastColor;
+                    output.append(character).append(lastColor);
+                    lastChar = character;
                     continue;
                 }
             }
-            if (lastColor == "§") {
+
+            if (Objects.equals(lastColor, "§")) {
                 lastColor = "§" + character;
-            }else if (!activeQuote) {
-                if (character.matches("\\d")) {
-                    output = output + numberColor + character + lastColor; // Color any number, marked by being outside of quotation marks
+            } else if (!activeQuote) {
+                if (Character.isDigit(character)) {
+                    if (lastChar != null && (lastChar == '.' || lastChar == ',')) {
+                        output.deleteCharAt(output.length() - 1);
+                        output.append(numberColor).append(lastChar);
+                    }
+                    // color any number, marked by being outside of quotation marks
+                    output.append(numberColor).append(character).append(lastColor);
+                    lastChar = character;
                     continue;
                 }
             }
-            if (character.matches("§")) { lastColor = "§"; }
+            if (character == '§') { lastColor = "§"; }
             if (activeQuote) {
-                output += stringColor; // Color any string, marked by 2 quotation marks
+                output.append(stringColor); // Color any string, marked by 2 quotation marks
             }
-            output += character;
+            output.append(character);
+            lastChar = character;
         }
-        return output;
+        return output.toString();
     }
 
     public static String formatValues(String text) {
-        return TextUtil.formatValues(text, "§b", "§c");
+        return TextUtil.formatValues(text, "§7", "§b", "§c");
     }
 }

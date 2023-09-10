@@ -2,12 +2,11 @@ package io.github.homchom.recode
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import io.github.homchom.recode.feature.AutomationFeatureGroup
-import io.github.homchom.recode.feature.SocialFeatureGroup
-import io.github.homchom.recode.feature.VisualFeatureGroup
-import io.github.homchom.recode.lifecycle.EntrypointDetail
-import io.github.homchom.recode.lifecycle.ModuleUnsafe
-import io.github.homchom.recode.lifecycle.module
+import io.github.homchom.recode.feature.automation.AutoCommands
+import io.github.homchom.recode.feature.visual.FBuiltInResourcePacks
+import io.github.homchom.recode.feature.visual.FCodeSearch
+import io.github.homchom.recode.feature.visual.FSignRenderDistance
+import io.github.homchom.recode.game.QuitGameEvent
 import io.github.homchom.recode.mod.commands.CommandHandler
 import io.github.homchom.recode.mod.config.Config
 import io.github.homchom.recode.mod.config.internal.ConfigFile
@@ -22,51 +21,22 @@ import io.github.homchom.recode.mod.events.LegacyEventHandler
 import io.github.homchom.recode.sys.hypercube.codeaction.ActionDump
 import io.github.homchom.recode.sys.hypercube.templates.TemplateStorageHandler
 import io.github.homchom.recode.sys.networking.websocket.SocketHandler
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.api.ModContainer
 import net.fabricmc.loader.api.metadata.ModMetadata
 import net.fabricmc.loader.api.metadata.ModOrigin
 import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.random.Random
 
-private val logger = LoggerFactory.getLogger(MOD_ID)
-
-private val recodeModule = module(EntrypointDetail) {
-    // TODO: move feature groups to a config module
-    depend(AutomationFeatureGroup, SocialFeatureGroup, VisualFeatureGroup)
-
-    // on mod initialize
-    onLoad {
-        logInfo("Initializing...")
-
-        System.setProperty("java.awt.headless", "false")
-
-        LegacyRecode.onInitialize()
-
-        logInfo("Initialized successfully!")
-    }
-
-    // on Minecraft close
-    onDisable {
-        logInfo("Closing...")
-
-        // TODO: clean up
-        try {
-            ConfigFile.getInstance().save()
-            TemplateStorageHandler.getInstance().save()
-        } catch (err: Exception) {
-            logError("Error")
-            err.printStackTrace()
-        }
-
-        logInfo("Closed.")
-    }
-}
+private val logger = LoggerFactory.getLogger(MOD_ID).apply { isEnabledForLevel(Level.DEBUG) }
 
 object Recode : ModContainer {
     val version: String get() = metadata.version.friendlyString
@@ -79,11 +49,45 @@ object Recode : ModContainer {
 
     private val container by lazy { FabricLoader.getInstance().getModContainer(MOD_ID).get() }
 
+    private var isInitialized = false
+
+    // initialize features TODO: replace with FeatureGroups during config refactor
+    init {
+        // Automation
+        AutoCommands
+
+        // Chat and Social
+
+        // Visual
+        FBuiltInResourcePacks
+        FCodeSearch
+        FSignRenderDistance
+    }
+
     /**
-     * Initializes recode. This should only be called once, from an entrypoint.
+     * Initializes the mod. This should only be called once, from an entrypoint.
      */
-    @ModuleUnsafe
-    fun initialize() = recodeModule.enable()
+    fun initialize() {
+        check(!isInitialized) { "$MOD_NAME has already been initialized" }
+        logInfo("initializing...")
+
+        LegacyRecode.onInitialize()
+
+        @OptIn(DelicateCoroutinesApi::class)
+        QuitGameEvent.listenEachFrom(GlobalScope) { close() }
+
+        isInitialized = true
+        logInfo("initialized successfully")
+    }
+
+    private fun close() {
+        logInfo("closing...")
+
+        ConfigFile.getInstance().save()
+        TemplateStorageHandler.getInstance().save()
+
+        logInfo("closed successfully")
+    }
 
     override fun getMetadata(): ModMetadata = container.metadata
     override fun getRootPaths(): List<Path> = container.rootPaths
@@ -131,7 +135,7 @@ object LegacyRecode {
         // Initialize legacy code
         val initializer = CodeInitializer()
         initializer.add(ConfigFile())
-        initializer.add(ConfigManager())
+        initializer.add(ConfigManager.getInstance())
         initializer.add(TemplateStorageHandler())
         initializer.add(ActionDump())
         initializer.add(LegacyEventHandler())
@@ -155,7 +159,11 @@ fun logInfo(message: String) = logger.info("[$MOD_NAME] $message")
 
 fun logError(message: String, mentionBugReport: Boolean = false) {
     val bugString = if (mentionBugReport) {
-        " If you believe this is a bug, you can report it here: github.com/homchom/recode/issues"
+        "\nIf you believe this is a bug, you can report it here: https://github.com/homchom/recode/issues)"
     } else ""
     logger.error("[$MOD_NAME] $message$bugString")
+}
+
+fun logDebug(message: String) {
+    if (debug) logger.info("[$MOD_NAME debug] $message")
 }

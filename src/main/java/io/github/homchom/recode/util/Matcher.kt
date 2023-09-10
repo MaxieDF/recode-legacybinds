@@ -1,33 +1,44 @@
 package io.github.homchom.recode.util
 
-// TODO: revisit
-
+/**
+ * A general-purpose function object that matches inputs of type [T] against a specification, returning matches
+ * of type [R] or `null`.
+ *
+ * @see matcherOf
+ */
 fun interface Matcher<in T, out R : Any> {
     fun match(input: T): R?
 
     infix fun matches(input: T) = match(input) != null
 }
 
-inline fun <reified E, T, R : Any> enumMatcher(): GroupMatcher<T, R, E>
-    where E : Enum<E>, E : Matcher<T, R>
-{
-    return MatcherList(*enumValues<E>())
-}
+/**
+ * Creates and returns a [MatcherList] with [initialPredicates].
+ */
+fun <T, R : Any> matcherOf(vararg initialPredicates: Matcher<T, R>) =
+    MatcherList<T, R>().apply { addAll(initialPredicates) }
 
-interface GroupMatcher<T, R : Any, M : Matcher<T, R>> : Matcher<T, GroupMatcherResult<T, R, M>>
+/**
+ * Creates and returns a [MatcherList] with [initialPredicates].
+ */
+fun <T, R : Matcher<T, R>> matcherOf(initialPredicates: Collection<R>) =
+    MatcherList<T, R>().apply { addAll(initialPredicates) }
 
-class MatcherList<T, R : Any, M : Matcher<T, R>> private constructor(
-    private val matchers: MutableList<M>
-) : GroupMatcher<T, R, M>, List<M> by matchers {
-    constructor(vararg initialMatchers: M) : this(initialMatchers.toMutableList())
+/**
+ * A [List]-backed implementation of [Matcher] that yields the first successful match among its elements.
+ */
+@JvmInline
+value class MatcherList<T, R : Any> private constructor(
+    private val elements: MutableList<Matcher<T, R>>
+) : Matcher<T, R>, MutableList<Matcher<T, R>> by elements {
+    constructor() : this(mutableListOf())
 
-    fun add(matcher: M) = matcher.also { matchers += it }
-
-    override fun match(input: T): GroupMatcherResult<T, R, M>? {
-        for (matcher in matchers) matcher.match(input)
-            ?.let { return GroupMatcherResult(matcher, it) }
-        return null
+    override fun match(input: T) = firstNotNullOfOrNull {
+        try {
+            it.match(input)
+        } catch (npe: NullPointerException) {
+            npe.printStackTrace()
+            throw npe
+        }
     }
 }
-
-data class GroupMatcherResult<T, R : Any, M : Matcher<T, R>>(val matcher: M, val value: R)

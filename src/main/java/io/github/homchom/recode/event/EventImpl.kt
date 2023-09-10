@@ -1,14 +1,17 @@
 package io.github.homchom.recode.event
 
 import com.google.common.cache.CacheBuilder
+import io.github.homchom.recode.Power
+import io.github.homchom.recode.PowerSink
 import io.github.homchom.recode.RecodeDispatcher
-import io.github.homchom.recode.lifecycle.ModuleDetail
-import io.github.homchom.recode.lifecycle.RModule
-import io.github.homchom.recode.lifecycle.module
 import io.github.homchom.recode.runOnMinecraftThread
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import net.fabricmc.fabric.api.event.Event
 import kotlin.time.Duration
@@ -42,7 +45,7 @@ fun <T, R : Any, I, K : Any> createBufferedEvent(
     contextGenerator: (I) -> T,
     cacheDuration: Duration = 1.seconds
 ): BufferedCustomEvent<T, R, I> {
-    val delegate = createEvent(resultCapture)
+    val delegate = FlowEvent(resultCapture)
     return BufferedFlowEvent(delegate, stableInterval, keySelector, contextGenerator, cacheDuration)
 }
 
@@ -54,35 +57,58 @@ fun <T, L> wrapFabricEvent(
     event: Event<L>,
     transform: (EventInvoker<T>) -> L
 ): WrappedEvent<T, L> {
-    return EventWrapper(event, transform)
+    return EventWrapper(event, transform, createEvent())
 }
 
 private class FlowEvent<T, R : Any>(private val resultCapture: (T) -> R) : CustomEvent<T, R> {
-    private val flow = MutableSharedFlow<T>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    val power = Power()
 
-    override val previous = MutableStateFlow<R?>(null)
+    override val notifications: MutableSharedFlow<T>
+        get() {
+            lazyInit()
+            return lazyFlow
+        }
 
-    override fun getNotificationsFrom(module: RModule) = flow
+    override val previous: MutableStateFlow<R?>
+        get() {
+            lazyInit()
+            return lazyPrevious
+        }
+
+    private lateinit var lazyFlow: MutableSharedFlow<T>
+    private lateinit var lazyPrevious: MutableStateFlow<R?>
+
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun lazyInit() {
+        if (::lazyFlow.isInitialized) return
+
+        lazyFlow = MutableSharedFlow(
+            extraBufferCapacity = 1,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
+        lazyPrevious = MutableStateFlow(null)
+
+        lazyFlow.subscriptionCount.onEach(power::setCharge)
+            .launchIn(GlobalScope)
+    }
 
     override fun run(context: T) = runOnMinecraftThread {
-        flow.checkEmit(context)
+        notifications.checkEmit(context)
         RecodeDispatcher.expedite() // allow for validation and other state mutation
         resultCapture(context).also { previous.checkEmit(it) }
     }
+
+    override fun use(source: Power) = power.use(source)
 }
 
 private class BufferedFlowEvent<T, R : Any, I, K : Any>(
-    delegate: CustomEvent<T, R>,
+    private val delegate: FlowEvent<T, R>,
     stableInterval: Duration,
     private val keySelector: (I) -> K,
     private val contextGenerator: (I) -> T,
     cacheDuration: Duration = 1.seconds
-) : BufferedCustomEvent<T, R, I> {
-    private val module = module(ModuleDetail.Exposed)
-    private val delegate = DependentEvent(delegate, module)
+) : BufferedCustomEvent<T, R, I>, PowerSink by delegate {
+    override val notifications by delegate::notifications
 
     // TODO: use Caffeine (official successor) or other alternative?
     private val buffer = CacheBuilder.newBuilder()
@@ -112,8 +138,6 @@ private class BufferedFlowEvent<T, R : Any, I, K : Any>(
 
     override val previous = MutableStateFlow<R?>(null)
 
-    override fun getNotificationsFrom(module: RModule) = delegate.getNotificationsFrom(module)
-
     override fun run(input: I): R {
         val key = keySelector(input)
         val bufferResult = buffer.getIfPresent(key)
@@ -121,7 +145,7 @@ private class BufferedFlowEvent<T, R : Any, I, K : Any>(
             delegate.run(contextGenerator(input)).also { buffer.put(key, it) }
         } else {
             if (++stabilizer.runIndex >= stabilizer.passes) {
-                module.launch {
+                delegate.power.launch {
                     buffer.put(key, delegate.run(contextGenerator(input)))
                 }
                 stabilizer.runIndex = 0
@@ -140,15 +164,14 @@ private fun <E> MutableSharedFlow<E>.checkEmit(value: E) =
 
 private class EventWrapper<T, L>(
     private val fabricEvent: Event<L>,
-    transform: ((T) -> Unit) -> L
-) : WrappedEvent<T, L> {
-    private val async = createEvent<T>()
+    transform: ((T) -> Unit) -> L,
+    private val async: CustomEvent<T, Unit>
+) : WrappedEvent<T, L>, PowerSink by async {
+    override val notifications by async::notifications
 
     override val invoker: L get() = fabricEvent.invoker()
 
     init {
         fabricEvent.register(transform(async::run))
     }
-
-    override fun getNotificationsFrom(module: RModule) = async.getNotificationsFrom(module)
 }

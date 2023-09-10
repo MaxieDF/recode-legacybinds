@@ -2,7 +2,7 @@ package io.github.homchom.recode.mod.events.impl;
 
 import io.github.homchom.recode.event.SimpleValidated;
 import io.github.homchom.recode.mod.config.Config;
-import io.github.homchom.recode.multiplayer.ReceiveChatMessageEvent;
+import io.github.homchom.recode.multiplayer.MultiplayerEvents;
 import io.github.homchom.recode.multiplayer.state.DF;
 import io.github.homchom.recode.multiplayer.state.PlotMode;
 import io.github.homchom.recode.sys.player.chat.ChatType;
@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 
 public class LegacyReceiveChatMessageEvent {
     public LegacyReceiveChatMessageEvent() {
-        ReceiveChatMessageEvent.INSTANCE.register(this::run);
+        MultiplayerEvents.getReceiveChatMessageEvent().register(this::run);
     }
 
     public static boolean pjoin = false;
@@ -34,7 +34,7 @@ public class LegacyReceiveChatMessageEvent {
         // TODO: temporary, migrate all code here
         String msgToString = message.getString();
 
-        String msgWithColor = TextUtil.textComponentToColorCodes(message);
+        String msgWithColor = TextUtil.toLegacyCodes(message);
         String msgWithoutColor = msgWithColor.replaceAll("§.", "");
 
         //PJoin command
@@ -69,7 +69,7 @@ public class LegacyReceiveChatMessageEvent {
         // highlight name
         if (Config.getBoolean("highlight")) {
             String highlightMatcher = Config.getString("highlightMatcher").replaceAll("\\{name}", mc.player.getName().getString());
-            if (DF.isInMode(DF.getCurrentDFState(), PlotMode.Dev) && (msgWithoutColor.matches("^[^0-z]+.*[a-zA-Z]+: .*")
+            if (DF.isInMode(DF.getCurrentDFState(), PlotMode.Dev.ID) && (msgWithoutColor.matches("^[^0-z]+.*[a-zA-Z]+: .*")
                     || msgWithoutColor.matches("^.*[a-zA-Z]+: .*"))) {
                 if ((!msgWithoutColor.matches("^.*" + highlightMatcher + ": .*")) || Config.getBoolean("highlightIgnoreSender")) {
                     if (msgWithoutColor.contains(highlightMatcher)) {
@@ -136,7 +136,7 @@ public class LegacyReceiveChatMessageEvent {
             cancel = true;
         }
 
-        if (DF.isInMode(DF.getCurrentDFState(), PlotMode.Dev)) {
+        if (DF.isInMode(DF.getCurrentDFState(), PlotMode.Dev.ID)) {
             // hide var scope messages
             if (Config.getBoolean("hideVarScopeMessages") && msgToString.startsWith("Scope set to ")) {
                 cancel = true;

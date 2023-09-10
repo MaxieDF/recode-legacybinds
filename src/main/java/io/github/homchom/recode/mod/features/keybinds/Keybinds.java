@@ -235,7 +235,7 @@ public class Keybinds implements ClientModInitializer {
 
             // search
             while (searchFunction.consumeClick()) {
-                if (DF.isInMode(DF.getCurrentDFState(), PlotMode.Dev)) {
+                if (DF.isInMode(DF.getCurrentDFState(), PlotMode.Dev.ID)) {
                     var hitLocation = mc.hitResult.getLocation().toVector3f();
                     var blockPos = new BlockPos((int) hitLocation.x, (int) hitLocation.y, (int) hitLocation.z);
                     BlockEntity blockEntity = mc.level.getBlockEntity(blockPos);

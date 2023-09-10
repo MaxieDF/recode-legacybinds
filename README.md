@@ -1,11 +1,11 @@
 <!-- modrinth_exclude.start -->
-# recode
-![logo](logo.png)
+<div align="center">
+  <img src="logo.png">
+  <h1>recode</h1>
+</div>
 <!-- modrinth_exclude.end -->
 
 recode is a utility-focused fabric mod for [DiamondFire](https://mcdiamondfire.com/home/) to make development more fun. It is the official successor to [CodeUtilities](https://github.com/CodeUtilities/CodeUtilities-2.0), from which it was cloned.
-
-You can find the mod jar [here](https://modrinth.com/mod/recode/versions). Future plans include removing bloat/unnecessary features, improving existing code, adding new features, and migrating to Kotlin.
 
 Feel free to join the recode Discord server: https://discord.gg/GWxWtcwA2C
 
@@ -24,6 +24,18 @@ DiamondFire is a Minecraft server where you can create your own minigames with c
 - Additional HUDs, such as the LagSlayer HUD to keep your action bar free
 - An additional Sided Chat to partition your messages
 - And much more!
+
+## Download
+
+You can download the mod [on Modrinth](https://modrinth.com/mod/recode/versions). This is the recommended place to get all versions of recode.
+
+### Latest Builds
+
+In some cases, you may wish to download the absolute latest build of the mod, which may have a feature or fix you need (but is not officially supported and will likely have other bugs).
+
+If you have a GitHub account, you can find the build for a run by clicking on the run as found [here](https://github.com/homchom/recode/actions/workflows/build.yml) and scrolling to "latest build" at the bottom. The latest build is the top entry.
+
+If you do *not* have a GitHub account, consider [nightly.link](https://nightly.link/) instead.
 
 ## Contributing
 

@@ -37,10 +37,8 @@ public class CommandHandler {
             new NameCommand(),
             // new HeadsCommand(),
             new ColorsCommand(),
-            new ColorCommand(),
             new EditItemCommand(),
             new CopyTextCommand(),
-            new GradientCommand(),
             new SearchCommand(),
             new QueueCommand(),
             new TitleCommand(),
@@ -61,7 +59,7 @@ public class CommandHandler {
                 new SendTemplateCommand(),
                 new PJoinCommand(),
                 new SchemCommand(),
-                new NBSSearchCommand(),
+                //new NBSSearchCommand(),
                 //new CodeVaultCommand(),
                 new ImportFileCommand()
             );
