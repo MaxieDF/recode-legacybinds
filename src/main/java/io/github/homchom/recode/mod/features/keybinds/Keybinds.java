@@ -173,7 +173,7 @@ public class Keybinds implements ClientModInitializer {
                 sendCommand("s");
             }
 
-            // toggle fs
+            // fs keybinds
             while (toggleFsSlow.consumeClick()) {
                 sendCommand("fs" + Config.getInteger("fsSlow").toString());
             }
