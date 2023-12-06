@@ -1,10 +1,10 @@
-package io.github.homchom.recode.multiplayer.message
+package io.github.homchom.recode.hypercube.message
 
 import io.github.homchom.recode.event.Requester
+import io.github.homchom.recode.hypercube.RIGHT_ARROW
+import io.github.homchom.recode.hypercube.state.*
 import io.github.homchom.recode.mc
-import io.github.homchom.recode.multiplayer.RIGHT_ARROW
 import io.github.homchom.recode.multiplayer.sendCommand
-import io.github.homchom.recode.multiplayer.state.*
 import io.github.homchom.recode.multiplayer.username
 import io.github.homchom.recode.ui.matchEntireUnstyled
 import io.github.homchom.recode.util.regex.RegexModifier
@@ -27,14 +27,14 @@ object StateMessages {
         {
             private val locateRegex = regex {
                 space * 39; newline
-                all {
+                group {
                     str("You are")
                     or
                     val player by username()
                     str(" is")
                 }
                 str(" currently ")
-                all {
+                group {
                     str("at spawn")
                     or
                     val mode by anyStr("playing", "building", "coding")
@@ -46,7 +46,7 @@ object StateMessages {
                     val plotID by digit.oneOrMore()
                     str("]")
 
-                    all {
+                    group {
                         bullet()
                         val status by any.oneOrMore().possessive()
                     }.optional().lazy()
@@ -101,7 +101,7 @@ object StateMessages {
                 str("Profile of ")
                 val player by username()
                 space
-                all {
+                group {
                     str("(")
                     any.oneOrMore()
                     str(")")

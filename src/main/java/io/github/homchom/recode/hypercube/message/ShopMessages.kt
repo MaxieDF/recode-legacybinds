@@ -1,11 +1,11 @@
-package io.github.homchom.recode.multiplayer.message
+package io.github.homchom.recode.hypercube.message
 
 import io.github.homchom.recode.event.Detector
 import io.github.homchom.recode.event.trial.detector
 import io.github.homchom.recode.event.trial.trial
-import io.github.homchom.recode.multiplayer.BOOSTER_ARROW
+import io.github.homchom.recode.hypercube.BOOSTER_ARROW
+import io.github.homchom.recode.hypercube.TOKEN_NOTCH_CHAR
 import io.github.homchom.recode.multiplayer.ReceiveChatMessageEvent
-import io.github.homchom.recode.multiplayer.TOKEN_NOTCH_CHAR
 import io.github.homchom.recode.multiplayer.username
 import io.github.homchom.recode.ui.matchEntireUnstyled
 import io.github.homchom.recode.ui.matchesUnstyled

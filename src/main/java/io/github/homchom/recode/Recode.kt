@@ -2,6 +2,7 @@ package io.github.homchom.recode
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import io.github.homchom.recode.event.listenEachFrom
 import io.github.homchom.recode.feature.automation.AutoCommands
 import io.github.homchom.recode.feature.visual.FBuiltInResourcePacks
 import io.github.homchom.recode.feature.visual.FCodeSearch
@@ -157,6 +158,7 @@ object LegacyRecode {
 
 fun logInfo(message: String) = logger.info("[$MOD_NAME] $message")
 
+@JvmOverloads
 fun logError(message: String, mentionBugReport: Boolean = false) {
     val bugString = if (mentionBugReport) {
         "\nIf you believe this is a bug, you can report it here: https://github.com/homchom/recode/issues)"

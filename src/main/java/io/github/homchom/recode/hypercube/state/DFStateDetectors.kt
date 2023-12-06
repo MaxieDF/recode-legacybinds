@@ -1,7 +1,7 @@
 @file:JvmName("DF")
 @file:JvmMultifileClass
 
-package io.github.homchom.recode.multiplayer.state
+package io.github.homchom.recode.hypercube.state
 
 import io.github.homchom.recode.Power
 import io.github.homchom.recode.event.GroupListenable
@@ -10,10 +10,14 @@ import io.github.homchom.recode.event.filterIsInstance
 import io.github.homchom.recode.event.trial.TrialScope
 import io.github.homchom.recode.event.trial.detector
 import io.github.homchom.recode.event.trial.trial
+import io.github.homchom.recode.hypercube.JoinDFDetector
+import io.github.homchom.recode.hypercube.message.CodeMessages
+import io.github.homchom.recode.hypercube.message.StateMessages
 import io.github.homchom.recode.mc
-import io.github.homchom.recode.multiplayer.*
-import io.github.homchom.recode.multiplayer.message.CodeMessages
-import io.github.homchom.recode.multiplayer.message.StateMessages
+import io.github.homchom.recode.multiplayer.DisconnectFromServerEvent
+import io.github.homchom.recode.multiplayer.ReceiveChatMessageEvent
+import io.github.homchom.recode.multiplayer.ReceiveGamePacketEvent
+import io.github.homchom.recode.multiplayer.username
 import io.github.homchom.recode.ui.matchesUnstyled
 import io.github.homchom.recode.ui.removeLegacyCodes
 import io.github.homchom.recode.util.Case
@@ -36,7 +40,6 @@ val isOnDF get() = currentDFState != null
 
 private val eventGroup = GroupListenable<Case<DFState?>>()
 
-// TODO: enable and disable JoinDFDetector and make this a child
 object DFStateDetectors : StateListenable<Case<DFState?>> by eventGroup {
     private val scoreboardNodeRegex = Regex("""(?<node>.+) - .+""")
 

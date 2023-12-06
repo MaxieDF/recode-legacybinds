@@ -9,6 +9,9 @@
     "recode.template_search.invalid": "Invalid Action '%s'.",
     "recode.template_search.begin_search": "Results of '%s'",
 
+    "recode.uncaught_exception.toast.title": "An uncaught exception occurred!",
+    "recode.uncaught_exception.toast": "Check the latest log for more info.",
+
     "chat.tag.recode.stacked": "(x%d)",
 
     "config.recode.title": "Recode",
@@ -111,7 +114,7 @@
     "config.recode.option.headMenuMaxRender.tooltip": "Amount of heads to display in the /heads menu.",
 
     "config.recode.option.colorReplacePicker": "Replace Color Picker",
-    "config.recode.option.colorReplacePicker.tooltip": "Replaces the color picker with\nDiamondFire's built-in command\".",
+    "config.recode.option.colorReplacePicker.tooltip": "Replaces the color picker with\nDiamondFire's built-in command.",
 
     "config.recode.subcategory.keybinds_flightspeed": "Flight Speed Keybind Values",
     "config.recode.subcategory.keybinds_flightspeed.tooltip": "Values used for the Flight Speed keybinds found\nin the \"Options -> Controls -> Recode\" menu.",

@@ -38,15 +38,6 @@ interface Listenable<out T> : PowerSink {
      */
     val notifications: Flow<T>
 
-    /**
-     * Adds a listener, running [action] for each notification.
-     *
-     * @see listenFrom
-     * @see notifications
-     */
-    fun listenEachFrom(scope: CoroutineScope, action: (T) -> Unit) =
-        listenFrom(scope) { onEach(action) }
-
     @Deprecated("Only for use in legacy Java code", ReplaceWith("TODO()"))
     @DelicateCoroutinesApi
     fun register(action: Consumer<in T>) = listenEachFrom(GlobalScope) { action.accept(it) }
@@ -59,6 +50,15 @@ interface Listenable<out T> : PowerSink {
  */
 fun <T> Listenable<T>.listenFrom(scope: CoroutineScope, block: Flow<T>.() -> Flow<T>) =
     notifications.block().launchIn(scope)
+
+/**
+ * Adds a listener, running [action] for each notification.
+ *
+ * @see listenFrom
+ * @see Listenable.notifications
+ */
+fun <T> Listenable<T>.listenEachFrom(scope: CoroutineScope, action: (T) -> Unit) =
+    listenFrom(scope) { onEach(action) }
 
 /**
  * A [Listenable] with a result of type [R].
@@ -80,19 +80,6 @@ interface StateListenable<out T : Any> : ResultListenable<T, T?>
  */
 interface CustomEvent<T, R : Any> : ResultListenable<T, R?> {
     fun run(context: T): R
-}
-
-/**
- * A custom, buffered [ResultListenable] event that can be [run]. Event contexts are supplied and transformed
- * into results; the event runs asynchronously and caches the result on some interval, and the most recent result
- * is stored in [previous].
- *
- * @param I The event's input type, which is mapped to [T] only when needed.
- */
-interface BufferedCustomEvent<T, R, I> : ResultListenable<T, R?> {
-    fun run(input: I): R
-
-    fun stabilize()
 }
 
 /**
